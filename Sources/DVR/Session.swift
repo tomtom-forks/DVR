@@ -1,6 +1,7 @@
 import Foundation
 
 open class Session: URLSession {
+
     // MARK: - Properties
     
     /// Replace this closure to handle recording end other than crashing.
