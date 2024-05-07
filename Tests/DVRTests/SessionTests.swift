@@ -389,7 +389,7 @@ class SessionTests: XCTestCase {
         let expectation = self.expectation(description: "Proper failure")
         let expectationRecording = self.expectation(description: "Proper failure")
         
-        Session.indicateRecordingCallback = {
+        Session.didRecordCassetteCallback = {
             expectationRecording.fulfill()
         }
         
