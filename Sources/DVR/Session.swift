@@ -215,6 +215,7 @@ open class Session: URLSession {
         defer {
             Session.didRecordCassetteCallback()
         }
+
         // Create directory
         let outputDirectory = (self.outputDirectory as NSString).expandingTildeInPath
         let fileManager = FileManager.default
