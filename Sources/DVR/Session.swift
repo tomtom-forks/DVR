@@ -3,7 +3,10 @@ import Foundation
 open class Session: URLSession {
 
     // MARK: - Properties
-
+    
+    /// Replace this closure to handle recording end other than crashing.
+    public static var didRecordCassetteCallback: () -> () = { abort() }
+    
     public static var defaultTestBundle: Bundle? {
         return Bundle.allBundles.first { $0.bundlePath.hasSuffix(".xctest") }
     }
@@ -211,7 +214,7 @@ open class Session: URLSession {
 
     private func persist(_ interactions: [Interaction]) {
         defer {
-            abort()
+            Session.didRecordCassetteCallback()
         }
 
         // Create directory
