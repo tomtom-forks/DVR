@@ -1,6 +1,13 @@
 import Foundation
 
 final class SessionDataTask: URLSessionDataTask {
+    
+    enum TaskError: Error {
+        case requestNotFound
+        case cannotRecordNoResponse
+        case recordedCassette
+        case cannotRecordSettingIsDisabled
+    }
 
     // MARK: - Types
 
@@ -66,21 +73,23 @@ final class SessionDataTask: URLSessionDataTask {
         }
 
         if cassette != nil {
-            fatalError("[DVR] Invalid request: \(request). The request was not found in the cassette with name: \(cassette?.name ?? "nil")")
+            completion?(nil, nil, TaskError.requestNotFound as NSError)
+            return
         }
 
         // Cassette is missing. Record.
         if session.recordingEnabled == false {
-            fatalError("[DVR] Recording is disabled.")
+            completion?(nil, nil, TaskError.cannotRecordSettingIsDisabled as NSError)
+            return
         }
         
         let request = session.requestSavedForBackingSession ?? request
 
         let task = session.backingSession.dataTask(with: request, completionHandler: { [weak self] data, response, error in
 
-            //Ensure we have a response
             guard let response else {
-                fatalError("[DVR] Failed to record because the task returned a nil response.")
+                self?.completion?(nil, nil, TaskError.cannotRecordNoResponse as NSError)
+                return
             }
 
             guard let this = self else {
@@ -89,7 +98,7 @@ final class SessionDataTask: URLSessionDataTask {
 
             // Still call the completion block so the user can chain requests while recording.
             this.queue.async {
-                this.completion?(data, response, nil)
+                this.completion?(nil, nil, TaskError.recordedCassette as NSError)
             }
 
             // Create interaction

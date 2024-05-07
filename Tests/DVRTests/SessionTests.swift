@@ -3,14 +3,25 @@ import Foundation
 @testable import DVR
 
 class SessionTests: XCTestCase {
-    let session: Session = {
-        let configuration = URLSessionConfiguration.default
-        configuration.httpAdditionalHeaders = ["testSessionHeader": "testSessionHeaderValue"]
-        let backingSession = URLSession(configuration: configuration)
-        return Session(cassetteName: "example", backingSession: backingSession)
-    }()
-
     let request = URLRequest(url: URL(string: "http://example.com")!)
+    var session: Session!
+    
+    override func setUp() {
+        super.setUp()
+        
+        session = {
+            let configuration = URLSessionConfiguration.default
+            configuration.httpAdditionalHeaders = ["testSessionHeader": "testSessionHeaderValue"]
+            let backingSession = URLSession(configuration: configuration)
+            return Session(cassetteName: "example", backingSession: backingSession)
+        }()
+    }
+    
+    override func tearDown() {
+        session = nil
+        
+        super.tearDown()
+    }
 
     func testInit() {
         XCTAssertEqual("example", session.cassetteName)
@@ -83,7 +94,7 @@ class SessionTests: XCTestCase {
             expectation.fulfill()
         }) .resume()
 
-        waitForExpectations(timeout: 1, handler: nil)
+        wait(for: [expectation], timeout: 1)
     }
 
     func testTextPlayback() {
@@ -106,7 +117,7 @@ class SessionTests: XCTestCase {
             expectation.fulfill()
         }) .resume()
 
-        waitForExpectations(timeout: 1, handler: nil)
+        wait(for: [expectation], timeout: 1)
     }
     
     func testTextPlaybackWithAllParamsWithoutIgnoredParameter() {
@@ -132,7 +143,7 @@ class SessionTests: XCTestCase {
             expectation.fulfill()
         }).resume()
 
-        waitForExpectations(timeout: 1, handler: nil)
+        wait(for: [expectation], timeout: 1)
     }
     
     func testTextPlaybackWithAllParamsWithIgnoredParameter() {
@@ -158,7 +169,7 @@ class SessionTests: XCTestCase {
             expectation.fulfill()
         }).resume()
 
-        waitForExpectations(timeout: 1, handler: nil)
+        wait(for: [expectation], timeout: 1)
     }
 
     func testDownload() {
@@ -170,7 +181,11 @@ class SessionTests: XCTestCase {
         let request = URLRequest(url: URL(string: "https://www.howsmyssl.com/a/check")!)
 
         session.downloadTask(with: request, completionHandler: { location, response, error in
-            let data = try! Data(contentsOf: location!)
+            guard let location, let data = try? Data(contentsOf: location) else {
+                XCTFail("Cannot unwrap location and data")
+                return
+            }
+            
             do {
                 let JSON = try JSONSerialization.jsonObject(with: data, options: []) as? [String: Any]
                 XCTAssertEqual("TLS 1.2", JSON?["tls_version"] as? String)
@@ -184,7 +199,7 @@ class SessionTests: XCTestCase {
             expectation.fulfill()
         }) .resume()
 
-        waitForExpectations(timeout: 1, handler: nil)
+        wait(for: [expectation], timeout: 1)
     }
 
     func testMultiple() {
@@ -204,7 +219,8 @@ class SessionTests: XCTestCase {
                     google.fulfill()
                 }) .resume()
 
-                session.endRecording() {
+                session.endRecording { error in
+                    XCTAssertNil(error)
                     expectation.fulfill()
                 }
             }
@@ -212,7 +228,7 @@ class SessionTests: XCTestCase {
             apple.fulfill()
         }) .resume()
 
-        waitForExpectations(timeout: 1, handler: nil)
+        wait(for: [expectation, apple, google], timeout: 1)
     }
 
     func testTaskDelegate() {
@@ -240,7 +256,7 @@ class SessionTests: XCTestCase {
         let task = session.dataTask(with: request)
         task.resume()
 
-        waitForExpectations(timeout: 1, handler: nil)
+        wait(for: [expectation], timeout: 1)
     }
 
     func testDataDelegate() {
@@ -266,7 +282,7 @@ class SessionTests: XCTestCase {
         let task = session.dataTask(with: request)
         task.resume()
 
-        waitForExpectations(timeout: 1, handler: nil)
+        wait(for: [expectation], timeout: 1)
     }
 
     func testRecordingStatusCodeForFailedRequest() {
@@ -285,7 +301,7 @@ class SessionTests: XCTestCase {
         }
         task.resume()
 
-        waitForExpectations(timeout: 1, handler: nil)
+        wait(for: [expectation], timeout: 1)
     }
 
     func testSameRequestWithDifferentHeaders() {
@@ -300,7 +316,11 @@ class SessionTests: XCTestCase {
 
         let firstExpectation = self.expectation(description: "request 1 completed")
         session.dataTask(with: request, completionHandler: { data, response, error in
-            XCTAssertEqual("hello", String(data: data!, encoding: String.Encoding.utf8))
+            guard let data else {
+                XCTFail("No data")
+                return
+            }
+            XCTAssertEqual("hello", String(data: data, encoding: String.Encoding.utf8))
 
             let httpResponse = response as! Foundation.HTTPURLResponse
             XCTAssertEqual(200, httpResponse.statusCode)
@@ -311,7 +331,11 @@ class SessionTests: XCTestCase {
         let secondExpectation = self.expectation(description: "request 2 completed")
         request.setValue("Bar2", forHTTPHeaderField: "Foo")
         session.dataTask(with: request, completionHandler: { data, response, error in
-            XCTAssertEqual("hello again", String(data: data!, encoding: String.Encoding.utf8))
+            guard let data else {
+                XCTFail("No data")
+                return
+            }
+            XCTAssertEqual("hello again", String(data: data, encoding: String.Encoding.utf8))
 
             let httpResponse = response as! Foundation.HTTPURLResponse
             XCTAssertEqual(200, httpResponse.statusCode)
@@ -323,7 +347,7 @@ class SessionTests: XCTestCase {
     }
     
     
-    func testTextPlaybackWithParams() {
+    func testTextPlaybackWithParams() throws {
         let session = Session(cassetteName: "text-with-param", parametersToIgnore: ["key"])
         session.recordingEnabled = false
 
@@ -333,17 +357,62 @@ class SessionTests: XCTestCase {
         request.setValue("text/plain", forHTTPHeaderField: "Content-Type")
 
         let expectation = self.expectation(description: "Network")
-
+        var storedData: Data?
+        var storedResponse: Foundation.URLResponse?
         session.dataTask(with: request, completionHandler: { data, response, error in
-            XCTAssertEqual("hello", String(data: data!, encoding: String.Encoding.utf8))
-
-            let httpResponse = response as! Foundation.HTTPURLResponse
-            XCTAssertEqual(200, httpResponse.statusCode)
-
+            XCTAssertNil(error)
+            
+            storedData = data
+            storedResponse = response
+            
             expectation.fulfill()
         }).resume()
 
-        waitForExpectations(timeout: 1, handler: nil)
-    }
+        wait(for: [expectation], timeout: 1)
+        
+        let string = String(data: try XCTUnwrap(storedData), encoding: String.Encoding.utf8)
+        XCTAssertEqual("hello", string)
 
+        let httpResponse = try XCTUnwrap(storedResponse as? Foundation.HTTPURLResponse)
+        XCTAssertEqual(200, httpResponse.statusCode)
+    }
+    
+    func testErrorOnMissingCassette() {
+        let uniqueUnavailableCasseteName = UUID().uuidString
+        let session = Session(cassetteName: uniqueUnavailableCasseteName, parametersToIgnore: ["key"])
+        session.recordingEnabled = true
+
+        var request = URLRequest(url: URL(string: "http://example.com?status=Available&key=Wmw0860")!)
+        request.httpMethod = "POST"
+        request.httpBody = "Some text.".data(using: String.Encoding.utf8)
+        request.setValue("text/plain", forHTTPHeaderField: "Content-Type")
+
+        let expectation = self.expectation(description: "Proper failure")
+
+        session.dataTask(with: request, completionHandler: { data, response, error in
+            XCTAssertEqual(error as? SessionDataTask.TaskError, .recordedCassette)
+            expectation.fulfill()
+        }).resume()
+
+        wait(for: [expectation], timeout: 1.0)
+    }
+    
+    func testErrorOnNotFoundResponse() {
+        let session = Session(cassetteName: "text-with-param", parametersToIgnore: ["key"])
+        session.recordingEnabled = false
+
+        var request = URLRequest(url: URL(string: "http://example.com?status=Available&key=Wmw0860")!)
+        request.httpMethod = "DELETE" // wrong method
+        request.httpBody = "Some text.".data(using: String.Encoding.utf8)
+        request.setValue("text/plain", forHTTPHeaderField: "Content-Type")
+
+        let expectation = self.expectation(description: "Proper failure")
+
+        session.dataTask(with: request, completionHandler: { data, response, error in
+            XCTAssertEqual(error as? SessionDataTask.TaskError, .requestNotFound)
+            expectation.fulfill()
+        }).resume()
+
+        wait(for: [expectation], timeout: 1.0)
+    }
 }
