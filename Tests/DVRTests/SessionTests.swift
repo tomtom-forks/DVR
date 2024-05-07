@@ -219,8 +219,7 @@ class SessionTests: XCTestCase {
                     google.fulfill()
                 }) .resume()
 
-                session.endRecording { error in
-                    XCTAssertNil(error)
+                session.endRecording {
                     expectation.fulfill()
                 }
             }
@@ -381,20 +380,27 @@ class SessionTests: XCTestCase {
         let uniqueUnavailableCasseteName = UUID().uuidString
         let session = Session(cassetteName: uniqueUnavailableCasseteName, parametersToIgnore: ["key"])
         session.recordingEnabled = true
-
+        
         var request = URLRequest(url: URL(string: "http://example.com?status=Available&key=Wmw0860")!)
         request.httpMethod = "POST"
         request.httpBody = "Some text.".data(using: String.Encoding.utf8)
         request.setValue("text/plain", forHTTPHeaderField: "Content-Type")
-
+        
         let expectation = self.expectation(description: "Proper failure")
-
+        let expectationRecording = self.expectation(description: "Proper failure")
+        
+        Session.indicateRecordingCallback = {
+            expectationRecording.fulfill()
+        }
+        
         session.dataTask(with: request, completionHandler: { data, response, error in
-            XCTAssertEqual(error as? SessionDataTask.TaskError, .recordedCassette)
+            XCTAssertNil(error)
+            XCTAssertNotNil(data)
+            XCTAssertNotNil(response)
             expectation.fulfill()
         }).resume()
 
-        wait(for: [expectation], timeout: 1.0)
+        wait(for: [expectation, expectationRecording], timeout: 1.0)
     }
     
     func testErrorOnNotFoundResponse() {

@@ -5,7 +5,6 @@ final class SessionDataTask: URLSessionDataTask {
     enum TaskError: Error {
         case requestNotFound
         case cannotRecordNoResponse
-        case recordedCassette
         case cannotRecordSettingIsDisabled
     }
 
@@ -98,7 +97,7 @@ final class SessionDataTask: URLSessionDataTask {
 
             // Still call the completion block so the user can chain requests while recording.
             this.queue.async {
-                this.completion?(nil, nil, TaskError.recordedCassette as NSError)
+                this.completion?(data, response, nil)
             }
 
             // Create interaction

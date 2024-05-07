@@ -1,9 +1,11 @@
 import Foundation
 
 open class Session: URLSession {
-
     // MARK: - Properties
-
+    
+    /// Replace this closure to handle recording end other than crashing.
+    public static var indicateRecordingCallback: () -> () = { abort() }
+    
     public static var defaultTestBundle: Bundle? {
         return Bundle.allBundles.first { $0.bundlePath.hasSuffix(".xctest") }
     }
@@ -21,7 +23,7 @@ open class Session: URLSession {
     private var needsPersistence = false
     private var outstandingTasks = [URLSessionTask]()
     private var completedInteractions = [Interaction]()
-    private var completionBlock: ((Error?) -> Void)?
+    private var completionBlock: (() -> Void)?
     
     private(set) var requestSavedForBackingSession: URLRequest?
 
@@ -117,7 +119,7 @@ open class Session: URLSession {
     /// This only needs to be called if you call `beginRecording`. `completion` will be called on the main queue after
     /// the completion block of the last task is called. `completion` is useful for fulfilling an expectation you setup
     /// before calling `beginRecording`.
-    open func endRecording(_ completion: ((Error?) -> Void)? = nil) {
+    open func endRecording(_ completion: (() -> Void)? = nil) {
         if !recording {
             return
         }
@@ -210,6 +212,10 @@ open class Session: URLSession {
     }
 
     private func persist(_ interactions: [Interaction]) {
+        defer {
+            Session.indicateRecordingCallback()
+        }
+        
         // Create directory
         let outputDirectory = (self.outputDirectory as NSString).expandingTildeInPath
         let fileManager = FileManager.default
@@ -258,11 +264,6 @@ open class Session: URLSession {
         completedInteractions = []
 
         // Call session’s completion block
-        let error = needsPersistence ? SessionError.persistedChangesDueToMismatch : nil
-        completionBlock?(error)
-    }
-    
-    enum SessionError: Error {
-        case persistedChangesDueToMismatch
+        completionBlock?()
     }
 }
