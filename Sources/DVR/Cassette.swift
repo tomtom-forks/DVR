@@ -25,11 +25,10 @@ struct Cassette {
 
             if interactionRequest.httpMethod == request.httpMethod &&
                 interactionRequest.hasEqualParameters(request, ignoreParameters: parametersToIgnore) &&
-                interactionRequest.hasHTTPBodyEqualToThatOfRequest(request)  {
+                interactionRequest.hasHTTPBodyEqualToThatOfRequest(request),
+                interactionRequest.hasHeadersEqualToThatOfRequest(request, headersToCheck: headersToCheck) {
 
-                // Overwrite the current match if the required headers are equal.
-                if match == nil ||
-                    interactionRequest.hasHeadersEqualToThatOfRequest(request, headersToCheck: headersToCheck) {
+                if match == nil {
                     match = interaction
                 }
             }
@@ -64,8 +63,8 @@ extension URLRequest {
     func hasHTTPBodyEqualToThatOfRequest(_ request: URLRequest) -> Bool {
         guard let body1 = self.httpBody,
             let body2 = request.httpBody,
-            let encoded1 = Interaction.encodeBody(body1, headers: self.allHTTPHeaderFields),
-            let encoded2 = Interaction.encodeBody(body2, headers: request.allHTTPHeaderFields)
+            let encoded1 = Interaction.encodeBody(body1, headers: nil),
+            let encoded2 = Interaction.encodeBody(body2, headers: nil)
         else {
             return self.httpBody == request.httpBody
         }

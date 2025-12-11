@@ -1,7 +1,7 @@
 import Foundation
 
 // There isn't a mutable HTTPURLResponse, so we have to make our own.
-class HTTPURLResponse: Foundation.HTTPURLResponse {
+class HTTPURLResponse: Foundation.HTTPURLResponse, @unchecked Sendable {
 
     // MARK: - Properties
 

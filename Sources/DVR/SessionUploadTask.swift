@@ -1,6 +1,6 @@
 import Foundation
 
-final class SessionUploadTask: URLSessionUploadTask {
+final class SessionUploadTask: URLSessionUploadTask, @unchecked Sendable {
 
     // MARK: - Types
 

@@ -1,6 +1,6 @@
 import Foundation
 
-open class Session: URLSession {
+open class Session: URLSession, @unchecked Sendable {
 
     // MARK: - Properties
     

@@ -1,11 +1,22 @@
 import Foundation
 
-final class SessionDataTask: URLSessionDataTask {
+final class SessionDataTask: URLSessionDataTask, @unchecked Sendable {
     
-    enum TaskError: Error {
+    enum TaskError: Error, CustomStringConvertible {
         case requestNotFound
         case cannotRecordNoResponse
         case cannotRecordSettingIsDisabled
+        
+        var description: String {
+            switch self {
+            case .requestNotFound:
+                return "[DVR] Request not found in cassette. "
+            case .cannotRecordNoResponse:
+                return "[DVR] No cassette found and cannot record request: no response received from backing session."
+            case .cannotRecordSettingIsDisabled:
+                return "[DVR] No cassette found and cannot record request: recording is disabled."
+            }
+        }
     }
 
     // MARK: - Types
