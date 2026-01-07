@@ -7,7 +7,6 @@ struct Cassette {
     let name: String
     let interactions: [Interaction]
 
-
     // MARK: - Initializers
 
     init(name: String, interactions: [Interaction]) {
@@ -15,35 +14,44 @@ struct Cassette {
         self.interactions = interactions
     }
 
-
     // MARK: - Functions
 
-    func interactionForRequest(_ request: URLRequest, headersToCheck: [String] = [], parametersToIgnore: [String] = []) -> Interaction? {
+    func interactionForRequest(
+        _ request: URLRequest, headersToCheck: [String] = [], parametersToIgnore: [String] = []
+    ) -> Interaction? {
         var match: Interaction?
         for interaction in interactions {
             let interactionRequest = interaction.request
 
-            if interactionRequest.httpMethod == request.httpMethod &&
-                interactionRequest.hasEqualParameters(request, ignoreParameters: parametersToIgnore) &&
-                interactionRequest.hasHTTPBodyEqualToThatOfRequest(request)  {
+            let hasEqualMethod = interactionRequest.httpMethod == request.httpMethod
+            let hasEqualParameters = interactionRequest.hasEqualParameters(
+                request, ignoreParameters: parametersToIgnore)
+            let hasEqualBody = interactionRequest.hasHTTPBodyEqualToThatOfRequest(request)
 
+            if hasEqualMethod && hasEqualParameters && hasEqualBody {
                 // Overwrite the current match if the required headers are equal.
-                if match == nil ||
-                    interactionRequest.hasHeadersEqualToThatOfRequest(request, headersToCheck: headersToCheck) {
+                if match == nil
+                    || interactionRequest.hasHeadersEqualToThatOfRequest(
+                        request, headersToCheck: headersToCheck)
+                {
                     match = interaction
                 }
+            } else {
+                print("[DVR] Request \(request) did not match interaction:")
+                print("[DVR] - Method equality: \(hasEqualMethod)")
+                print("[DVR] - Parameters equality: \(hasEqualParameters)")
+                print("[DVR] - Body equality: \(hasEqualBody)")
             }
         }
         return match
     }
 }
 
-
 extension Cassette {
     var dictionary: [String: Any] {
         return [
             "name": name as Any,
-            "interactions": interactions.map { $0.dictionary }
+            "interactions": interactions.map { $0.dictionary },
         ]
     }
 
@@ -83,25 +91,27 @@ extension URLRequest {
         }
         return true
     }
-    
+
     func hasEqualParameters(_ request: URLRequest, ignoreParameters: [String] = []) -> Bool {
         if url == request.url { return true }
-            
+
         let request1 = createRequest(withoutKeys: ignoreParameters)
         let request2 = request.createRequest(withoutKeys: ignoreParameters)
-        
+
         return request1.url == request2.url
     }
 
     func createRequest(withoutKeys: [String]) -> URLRequest {
         var newRequest = self
         guard let oldURL = url, withoutKeys != [] else { return newRequest }
-        
+
         if var urlComponents = URLComponents(url: oldURL, resolvingAgainstBaseURL: false) {
-            urlComponents.queryItems = urlComponents.queryItems?.filter {  !withoutKeys.contains($0.name) }
+            urlComponents.queryItems = urlComponents.queryItems?.filter {
+                !withoutKeys.contains($0.name)
+            }
             newRequest.url = urlComponents.url
         }
-        
+
         return newRequest
     }
 }
