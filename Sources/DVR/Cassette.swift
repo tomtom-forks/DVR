@@ -37,7 +37,8 @@ struct Cassette {
                     match = interaction
                 }
             } else {
-                print("[DVR] Request \(request) did not match interaction:")
+                // Printing only base URL to avoid exposing sensitive data
+                print("[DVR] Request \(request.url?.baseURL?.absoluteString ?? "") did not match interaction:")
                 print("[DVR] - Method equality: \(hasEqualMethod)")
                 print("[DVR] - Parameters equality: \(hasEqualParameters)")
                 print("[DVR] - Body equality: \(hasEqualBody)")
