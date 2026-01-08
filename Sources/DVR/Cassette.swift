@@ -42,6 +42,10 @@ struct Cassette {
                 print("[DVR] Request \(baseURL) did not match interaction:")
                 print("[DVR] - Method equality: \(hasEqualMethod)")
                 print("[DVR] - Parameters equality: \(hasEqualParameters)")
+                if !hasEqualParameters {
+                    let paramDiff = interactionRequest.parameterDifference(from: request, ignoreParameters: parametersToIgnore)
+                    print("[DVR]   Parameter differences: \(paramDiff)")
+                }
                 print("[DVR] - Body equality: \(hasEqualBody)")
             }
         }
@@ -115,5 +119,46 @@ extension URLRequest {
         }
 
         return newRequest
+    }
+
+    func parameterDifference(from request: URLRequest, ignoreParameters: [String] = []) -> String {
+        guard let url1 = self.url, let url2 = request.url else {
+            return "unable to compare (missing URLs)"
+        }
+
+        let components1 = URLComponents(url: url1, resolvingAgainstBaseURL: false)
+        let components2 = URLComponents(url: url2, resolvingAgainstBaseURL: false)
+
+        let params1 = components1?.queryItems?.filter { !ignoreParameters.contains($0.name) } ?? []
+        let params2 = components2?.queryItems?.filter { !ignoreParameters.contains($0.name) } ?? []
+
+        let keys1 = Set(params1.map { $0.name })
+        let keys2 = Set(params2.map { $0.name })
+
+        let onlyInRequest1 = keys1.subtracting(keys2)
+        let onlyInRequest2 = keys2.subtracting(keys1)
+        let commonKeys = keys1.intersection(keys2)
+
+        var differentValues: Set<String> = []
+        for key in commonKeys {
+            let value1 = params1.first(where: { $0.name == key })?.value
+            let value2 = params2.first(where: { $0.name == key })?.value
+            if value1 != value2 {
+                differentValues.insert(key)
+            }
+        }
+
+        var parts: [String] = []
+        if !onlyInRequest1.isEmpty {
+            parts.append("only in interaction: \(onlyInRequest1.sorted().joined(separator: ", "))")
+        }
+        if !onlyInRequest2.isEmpty {
+            parts.append("only in request: \(onlyInRequest2.sorted().joined(separator: ", "))")
+        }
+        if !differentValues.isEmpty {
+            parts.append("different values: \(differentValues.sorted().joined(separator: ", "))")
+        }
+
+        return parts.isEmpty ? "none (other URL components differ)" : parts.joined(separator: "; ")
     }
 }
