@@ -37,7 +37,6 @@ struct Cassette {
                     match = interaction
                 }
             } else {
-                // Printing only base URL and path to avoid exposing sensitive data
                 let baseURL = request.url.map { "\($0.scheme ?? "")://\($0.host ?? "")\($0.path)" } ?? "unknown"
                 print("[DVR] Request \(baseURL) did not match interaction:")
                 print("[DVR] - Method equality: \(hasEqualMethod)")
