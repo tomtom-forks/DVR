@@ -1,4 +1,5 @@
 import Foundation
+import os
 
 final class SessionDataTask: URLSessionDataTask {
 
@@ -11,6 +12,8 @@ final class SessionDataTask: URLSessionDataTask {
     // MARK: - Types
 
     typealias Completion = (Data?, Foundation.URLResponse?, NSError?) -> Void
+
+    private static let logger = Logger(subsystem: "DVR", category: "playback")
 
     // MARK: - Properties
 
@@ -73,14 +76,14 @@ final class SessionDataTask: URLSessionDataTask {
         }
 
         if cassette != nil {
-            print("[DVR] Error: Request not found in cassette '\(cassette!.name)'.")
+            Self.logger.error("Request not found in cassette '\(cassette!.name)'")
             completion?(nil, nil, TaskError.requestNotFound as NSError)
             return
         }
 
         // Cassette is missing. Record.
         if session.recordingEnabled == false {
-            print("[DVR] Error: Cassette is missing and recording is disabled.")
+            Self.logger.error("Cassette is missing and recording is disabled")
             completion?(nil, nil, TaskError.cannotRecordSettingIsDisabled as NSError)
             return
         }
@@ -92,7 +95,7 @@ final class SessionDataTask: URLSessionDataTask {
             completionHandler: { [weak self] data, response, error in
 
                 guard let response else {
-                    print("[DVR] Error: No response.")
+                    Self.logger.error("No response received from backing session")
                     self?.completion?(nil, nil, TaskError.cannotRecordNoResponse as NSError)
                     return
                 }

@@ -1,9 +1,12 @@
 import Foundation
+import os
 
 open class Session: URLSession {
 
     // MARK: - Properties
-    
+
+    private static let logger = Logger(subsystem: "DVR", category: "persistence")
+
     /// Replace this closure to handle recording end other than crashing.
     public static var didRecordCassetteCallback: () -> () = { abort() }
     
@@ -224,7 +227,7 @@ open class Session: URLSession {
             do {
               try fileManager.createDirectory(atPath: outputDirectory, withIntermediateDirectories: true, attributes: nil)
             } catch {
-              print("[DVR] Failed to create cassettes directory.")
+              Self.logger.error("Failed to create cassettes directory: \(error.localizedDescription)")
             }
         }
 
@@ -239,20 +242,20 @@ open class Session: URLSession {
 
             // Add trailing new line
             guard var string = NSString(data: data, encoding: String.Encoding.utf8.rawValue) else {
-                print("[DVR] Failed to persist cassette.")
+                Self.logger.error("Failed to persist cassette: unable to encode JSON as UTF-8")
                 return
             }
             string = string.appending("\n") as NSString
 
             if let data = string.data(using: String.Encoding.utf8.rawValue) {
                 try? data.write(to: URL(fileURLWithPath: outputPath), options: [.atomic])
-                print("[DVR] Persisted cassette at \(outputPath). Please add this file to your test target")
+                Self.logger.info("Persisted cassette at \(outputPath). Please add this file to your test target")
                 return
             }
 
-            print("[DVR] Failed to persist cassette.")
+            Self.logger.error("Failed to persist cassette: unable to convert string to data")
         } catch {
-            print("[DVR] Failed to persist cassette.")
+            Self.logger.error("Failed to persist cassette: \(error.localizedDescription)")
         }
     }
 
