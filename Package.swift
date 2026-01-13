@@ -6,7 +6,7 @@ let package = Package(
     name: "DVR",
     platforms: [
         .macOS(.v11),
-        .iOS(.v14),
+        .iOS(.v15),
         .tvOS(.v14),
         .watchOS(.v7)
     ],
