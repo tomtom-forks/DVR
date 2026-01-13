@@ -8,10 +8,17 @@ open class Session: URLSession {
     private static let logger = Logger(subsystem: "DVR", category: "persistence")
 
     /// Replace this closure to handle recording end other than crashing.
-    public static var didRecordCassetteCallback: () -> () = { abort() }
-    
+    public static var didRecordCassetteCallback: () -> Void = { abort() }
+
     public static var defaultTestBundle: Bundle? {
-        return Bundle.allBundles.first { $0.bundlePath.hasSuffix(".xctest") }
+        #if SWIFT_PACKAGE
+            // For Swift Package Manager, we need to look for resources in the test target's bundle
+            return Bundle.allBundles.first {
+                $0.bundlePath.contains("DVRTests") || $0.bundlePath.hasSuffix(".xctest")
+            }
+        #else
+            return Bundle.allBundles.first { $0.bundlePath.hasSuffix(".xctest") }
+        #endif
     }
 
     open var outputDirectory: String
@@ -28,7 +35,7 @@ open class Session: URLSession {
     private var outstandingTasks = [URLSessionTask]()
     private var completedInteractions = [Interaction]()
     private var completionBlock: (() -> Void)?
-    
+
     private(set) var requestSavedForBackingSession: URLRequest?
 
     override open var delegate: URLSessionDelegate? {
@@ -37,12 +44,14 @@ open class Session: URLSession {
 
     // MARK: - Initializers
 
-    public init(outputDirectory: String = "~/Desktop/DVR/", 
-                cassetteName: String,
-                testBundle: Bundle = Session.defaultTestBundle!,
-                backingSession: URLSession = URLSession.shared,
-                headersToCheck: [String] = [],
-                parametersToIgnore: [String] = []) {
+    public init(
+        outputDirectory: String = "~/Desktop/DVR/",
+        cassetteName: String,
+        testBundle: Bundle = Session.defaultTestBundle!,
+        backingSession: URLSession = URLSession.shared,
+        headersToCheck: [String] = [],
+        parametersToIgnore: [String] = []
+    ) {
         self.outputDirectory = outputDirectory
         self.cassetteName = cassetteName
         self.testBundle = testBundle
@@ -52,14 +61,16 @@ open class Session: URLSession {
         super.init()
     }
 
-
     // MARK: - URLSession
-    
+
     open override func dataTask(with url: URL) -> URLSessionDataTask {
         return addDataTask(URLRequest(url: url))
     }
 
-    open override func dataTask(with url: URL, completionHandler: @escaping ((Data?, Foundation.URLResponse?, Error?) -> Void)) -> URLSessionDataTask {
+    open override func dataTask(
+        with url: URL,
+        completionHandler: @escaping ((Data?, Foundation.URLResponse?, Error?) -> Void)
+    ) -> URLSessionDataTask {
         return addDataTask(URLRequest(url: url), completionHandler: completionHandler)
     }
 
@@ -67,7 +78,10 @@ open class Session: URLSession {
         return addDataTask(request)
     }
 
-    open override func dataTask(with request: URLRequest, completionHandler: @escaping ((Data?, Foundation.URLResponse?, Error?) -> Void)) -> URLSessionDataTask {
+    open override func dataTask(
+        with request: URLRequest,
+        completionHandler: @escaping ((Data?, Foundation.URLResponse?, Error?) -> Void)
+    ) -> URLSessionDataTask {
         return addDataTask(request, completionHandler: completionHandler)
     }
 
@@ -75,24 +89,37 @@ open class Session: URLSession {
         return addDownloadTask(request)
     }
 
-    open override func downloadTask(with request: URLRequest, completionHandler: @escaping (URL?, Foundation.URLResponse?, Error?) -> Void) -> URLSessionDownloadTask {
+    open override func downloadTask(
+        with request: URLRequest,
+        completionHandler: @escaping (URL?, Foundation.URLResponse?, Error?) -> Void
+    ) -> URLSessionDownloadTask {
         return addDownloadTask(request, completionHandler: completionHandler)
     }
 
-    open override func uploadTask(with request: URLRequest, from bodyData: Data) -> URLSessionUploadTask {
+    open override func uploadTask(with request: URLRequest, from bodyData: Data)
+        -> URLSessionUploadTask
+    {
         return addUploadTask(request, fromData: bodyData)
     }
 
-    open override  func uploadTask(with request: URLRequest, from bodyData: Data?, completionHandler: @escaping (Data?, Foundation.URLResponse?, Error?) -> Void) -> URLSessionUploadTask {
+    open override func uploadTask(
+        with request: URLRequest, from bodyData: Data?,
+        completionHandler: @escaping (Data?, Foundation.URLResponse?, Error?) -> Void
+    ) -> URLSessionUploadTask {
         return addUploadTask(request, fromData: bodyData, completionHandler: completionHandler)
     }
 
-    open override func uploadTask(with request: URLRequest, fromFile fileURL: URL) -> URLSessionUploadTask {
+    open override func uploadTask(with request: URLRequest, fromFile fileURL: URL)
+        -> URLSessionUploadTask
+    {
         let data = try! Data(contentsOf: fileURL)
         return addUploadTask(request, fromData: data)
     }
 
-    open override func uploadTask(with request: URLRequest, fromFile fileURL: URL, completionHandler: @escaping (Data?, Foundation.URLResponse?, Error?) -> Void) -> URLSessionUploadTask {
+    open override func uploadTask(
+        with request: URLRequest, fromFile fileURL: URL,
+        completionHandler: @escaping (Data?, Foundation.URLResponse?, Error?) -> Void
+    ) -> URLSessionUploadTask {
         let data = try! Data(contentsOf: fileURL)
         return addUploadTask(request, fromData: data, completionHandler: completionHandler)
     }
@@ -103,7 +130,6 @@ open class Session: URLSession {
         backingSession.invalidateAndCancel()
         requestSavedForBackingSession = nil
     }
-
 
     // MARK: - Recording
 
@@ -136,7 +162,6 @@ open class Session: URLSession {
         }
     }
 
-
     // MARK: - Internal
 
     var cassette: Cassette? {
@@ -162,7 +187,9 @@ open class Session: URLSession {
             finishRecording()
         }
 
-        if let delegate = delegate as? URLSessionDataDelegate, let task = task as? URLSessionDataTask, let data = interaction.responseData {
+        if let delegate = delegate as? URLSessionDataDelegate,
+            let task = task as? URLSessionDataTask, let data = interaction.responseData
+        {
             delegate.urlSession?(self, dataTask: task, didReceive: data as Data)
         }
 
@@ -171,33 +198,47 @@ open class Session: URLSession {
         }
     }
 
-
     // MARK: - Private
 
-    private func addDataTask(_ request: URLRequest, completionHandler: ((Data?, Foundation.URLResponse?, NSError?) -> Void)? = nil) -> URLSessionDataTask {
-        var modifiedRequest = backingSession.configuration.httpAdditionalHeaders.map(request.appending) ?? request
+    private func addDataTask(
+        _ request: URLRequest,
+        completionHandler: ((Data?, Foundation.URLResponse?, NSError?) -> Void)? = nil
+    ) -> URLSessionDataTask {
+        var modifiedRequest =
+            backingSession.configuration.httpAdditionalHeaders.map(request.appending) ?? request
         requestSavedForBackingSession = modifiedRequest
         modifiedRequest = modifiedRequest.createRequest(withoutKeys: parametersToIgnore)
-        let task = SessionDataTask(session: self, request: modifiedRequest, headersToCheck: headersToCheck, completion: completionHandler)
+        let task = SessionDataTask(
+            session: self, request: modifiedRequest, headersToCheck: headersToCheck,
+            completion: completionHandler)
         addTask(task)
         return task
     }
 
-    private func addDownloadTask(_ request: URLRequest, completionHandler: SessionDownloadTask.Completion? = nil) -> URLSessionDownloadTask {
-        var modifiedRequest = backingSession.configuration.httpAdditionalHeaders.map(request.appending) ?? request
+    private func addDownloadTask(
+        _ request: URLRequest, completionHandler: SessionDownloadTask.Completion? = nil
+    ) -> URLSessionDownloadTask {
+        var modifiedRequest =
+            backingSession.configuration.httpAdditionalHeaders.map(request.appending) ?? request
         requestSavedForBackingSession = modifiedRequest
         modifiedRequest = modifiedRequest.createRequest(withoutKeys: parametersToIgnore)
-        let task = SessionDownloadTask(session: self, request: modifiedRequest, completion: completionHandler)
+        let task = SessionDownloadTask(
+            session: self, request: modifiedRequest, completion: completionHandler)
         addTask(task)
         return task
     }
 
-    private func addUploadTask(_ request: URLRequest, fromData data: Data?, completionHandler: SessionUploadTask.Completion? = nil) -> URLSessionUploadTask {
-        var modifiedRequest = backingSession.configuration.httpAdditionalHeaders.map(request.appending) ?? request
+    private func addUploadTask(
+        _ request: URLRequest, fromData data: Data?,
+        completionHandler: SessionUploadTask.Completion? = nil
+    ) -> URLSessionUploadTask {
+        var modifiedRequest =
+            backingSession.configuration.httpAdditionalHeaders.map(request.appending) ?? request
         modifiedRequest = data.map(modifiedRequest.appending) ?? modifiedRequest
         requestSavedForBackingSession = modifiedRequest
         modifiedRequest = modifiedRequest.createRequest(withoutKeys: parametersToIgnore)
-        let task = SessionUploadTask(session: self, request: modifiedRequest, completion: completionHandler)
+        let task = SessionUploadTask(
+            session: self, request: modifiedRequest, completion: completionHandler)
         addTask(task.dataTask)
         return task
     }
@@ -225,9 +266,11 @@ open class Session: URLSession {
         let fileManager = FileManager.default
         if !fileManager.fileExists(atPath: outputDirectory) {
             do {
-              try fileManager.createDirectory(atPath: outputDirectory, withIntermediateDirectories: true, attributes: nil)
+                try fileManager.createDirectory(
+                    atPath: outputDirectory, withIntermediateDirectories: true, attributes: nil)
             } catch {
-              Self.logger.error("Failed to create cassettes directory: \(error.localizedDescription)")
+                Self.logger.error(
+                    "Failed to create cassettes directory: \(error.localizedDescription)")
             }
         }
 
@@ -235,10 +278,12 @@ open class Session: URLSession {
 
         // Persist
 
-
         do {
-            let outputPath = ((outputDirectory as NSString).appendingPathComponent(cassetteName) as NSString).appendingPathExtension("json")!
-            let data = try JSONSerialization.data(withJSONObject: cassette.dictionary, options: [.prettyPrinted])
+            let outputPath =
+                ((outputDirectory as NSString).appendingPathComponent(cassetteName) as NSString)
+                .appendingPathExtension("json")!
+            let data = try JSONSerialization.data(
+                withJSONObject: cassette.dictionary, options: [.prettyPrinted])
 
             // Add trailing new line
             guard var string = NSString(data: data, encoding: String.Encoding.utf8.rawValue) else {
@@ -249,7 +294,8 @@ open class Session: URLSession {
 
             if let data = string.data(using: String.Encoding.utf8.rawValue) {
                 try? data.write(to: URL(fileURLWithPath: outputPath), options: [.atomic])
-                Self.logger.info("Persisted cassette at \(outputPath). Please add this file to your test target")
+                Self.logger.info(
+                    "Persisted cassette at \(outputPath). Please add this file to your test target")
                 return
             }
 

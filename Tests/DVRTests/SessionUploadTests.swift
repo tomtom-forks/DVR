@@ -1,6 +1,12 @@
 import XCTest
 import DVR
 
+#if SWIFT_PACKAGE
+private let testBundle = Bundle.module
+#else
+private let testBundle = Bundle(for: SessionUploadTests.self)
+#endif
+
 class SessionUploadTests: XCTestCase {
 
     lazy var request: URLRequest = {
@@ -13,11 +19,11 @@ class SessionUploadTests: XCTestCase {
     }()
     let multipartBoundary = "---------------------------3klfenalksjflkjoi9auf89eshajsnl3kjnwal".utf8Data
     lazy var testFile: URL = {
-        return Bundle(for: type(of: self)).url(forResource: "testfile", withExtension: "txt")!
+        return testBundle.url(forResource: "testfile", withExtension: "txt")!
     }()
 
     func testUploadFile() {
-        let session = Session(cassetteName: "upload-file")
+        let session = Session(cassetteName: "upload-file", testBundle: testBundle)
         session.recordingEnabled = false
         let expectation = self.expectation(description: "Network")
 
@@ -42,7 +48,7 @@ class SessionUploadTests: XCTestCase {
     }
 
     func testUploadData() {
-        let session = Session(cassetteName: "upload-data")
+        let session = Session(cassetteName: "upload-data", testBundle: testBundle)
         session.recordingEnabled = false
         let expectation = self.expectation(description: "Network")
 

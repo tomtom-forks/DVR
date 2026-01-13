@@ -12,6 +12,14 @@ echo "==> Building project"
 swift build -c release
 
 echo "==> Running tests"
-swift test --parallel
+swift test 2>&1 | tee /tmp/test-output.txt
 
-echo "✅ All tests passed!"
+# Check if tests actually passed
+if [ ${PIPESTATUS[0]} -eq 0 ]; then
+    # Extract and show test summary
+    echo "✅ All tests passed!"
+else
+    echo ""
+    echo "❌ Tests failed!"
+    exit 1
+fi
