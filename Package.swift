@@ -1,4 +1,4 @@
-// swift-tools-version:5.3
+// swift-tools-version:5.5
 
 import PackageDescription
 
@@ -12,14 +12,17 @@ let package = Package(
     ],
     products: [
         .library(
-          name: "DVR",
-          targets: ["DVR"])
+            name: "DVR",
+            targets: ["DVR"]
+        )
     ],
     targets: [
-      .target(name: "DVR"),
-      .testTarget(
-          name: "DVRTests",
-          dependencies: ["DVR"])
+        .target(name: "DVR"),
+        .testTarget(
+            name: "DVRTests",
+            dependencies: ["DVR"],
+            resources: [.process("Fixtures")]
+        )
     ]
 )
 
