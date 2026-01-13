@@ -1,9 +1,15 @@
-// swift-tools-version:5.0
+// swift-tools-version:5.3
 
 import PackageDescription
 
 let package = Package(
     name: "DVR",
+    platforms: [
+        .macOS(.v11),
+        .iOS(.v15),
+        .tvOS(.v14),
+        .watchOS(.v7)
+    ],
     products: [
         .library(
           name: "DVR",

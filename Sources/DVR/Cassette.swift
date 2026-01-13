@@ -1,8 +1,11 @@
 import Foundation
+import os
 
 struct Cassette {
 
     // MARK: - Properties
+
+    private static let logger = Logger(subsystem: "DVR", category: "matching")
 
     let name: String
     let interactions: [Interaction]
@@ -38,14 +41,14 @@ struct Cassette {
                 }
             } else {
                 let baseURL = request.url.map { "\($0.scheme ?? "")://\($0.host ?? "")\($0.path)" } ?? "unknown"
-                print("[DVR] Request \(baseURL) did not match interaction:")
-                print("[DVR] - Method equality: \(hasEqualMethod)")
-                print("[DVR] - Parameters equality: \(hasEqualParameters)")
+                Self.logger.debug("Request \(baseURL) did not match interaction:")
+                Self.logger.debug("- Method equality: \(hasEqualMethod)")
+                Self.logger.debug("- Parameters equality: \(hasEqualParameters)")
                 if !hasEqualParameters {
                     let paramDiff = interactionRequest.parameterDifference(from: request, ignoreParameters: parametersToIgnore)
-                    print("[DVR]   Parameter differences: \(paramDiff)")
+                    Self.logger.debug("  Parameter differences: \(paramDiff)")
                 }
-                print("[DVR] - Body equality: \(hasEqualBody)")
+                Self.logger.debug("- Body equality: \(hasEqualBody)")
             }
         }
         return match
