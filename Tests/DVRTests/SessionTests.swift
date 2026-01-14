@@ -4,9 +4,9 @@ import XCTest
 @testable import DVR
 
 #if SWIFT_PACKAGE
-private let testBundle = Bundle.module
+    private let testBundle = Bundle.module
 #else
-private let testBundle = Bundle(for: SessionTests.self)
+    private let testBundle = Bundle(for: SessionTests.self)
 #endif
 
 class SessionTests: XCTestCase {

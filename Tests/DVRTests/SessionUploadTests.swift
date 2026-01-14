@@ -1,10 +1,10 @@
-import XCTest
 import DVR
+import XCTest
 
 #if SWIFT_PACKAGE
-private let testBundle = Bundle.module
+    private let testBundle = Bundle.module
 #else
-private let testBundle = Bundle(for: SessionUploadTests.self)
+    private let testBundle = Bundle(for: SessionUploadTests.self)
 #endif
 
 class SessionUploadTests: XCTestCase {
@@ -17,7 +17,8 @@ class SessionUploadTests: XCTestCase {
         request.addValue(contentType, forHTTPHeaderField: "Content-Type")
         return request as URLRequest
     }()
-    let multipartBoundary = "---------------------------3klfenalksjflkjoi9auf89eshajsnl3kjnwal".utf8Data
+    let multipartBoundary = "---------------------------3klfenalksjflkjoi9auf89eshajsnl3kjnwal"
+        .utf8Data
     lazy var testFile: URL = {
         return testBundle.url(forResource: "testfile", withExtension: "txt")!
     }()
@@ -30,19 +31,24 @@ class SessionUploadTests: XCTestCase {
         let data = encodeMultipartBody(try! Data(contentsOf: testFile), parameters: [:])
         let file = writeDataToFile(data, fileName: "upload-file")
 
-        session.uploadTask(with: request, fromFile: file, completionHandler: { data, response, error in
-            do {
-                let JSON = try JSONSerialization.jsonObject(with: data!, options: []) as? [String: Any]
-                XCTAssertEqual("test file\n", (JSON?["form"] as? [String: Any])?["file"] as? String)
-            } catch {
-                XCTFail("Failed to read JSON.")
+        session.uploadTask(
+            with: request, fromFile: file,
+            completionHandler: { data, response, error in
+                do {
+                    let JSON =
+                        try JSONSerialization.jsonObject(with: data!, options: []) as? [String: Any]
+                    XCTAssertEqual(
+                        "test file\n", (JSON?["form"] as? [String: Any])?["file"] as? String)
+                } catch {
+                    XCTFail("Failed to read JSON.")
+                }
+
+                let HTTPResponse = response as! HTTPURLResponse
+                XCTAssertEqual(200, HTTPResponse.statusCode)
+
+                expectation.fulfill()
             }
-
-            let HTTPResponse = response as! HTTPURLResponse
-            XCTAssertEqual(200, HTTPResponse.statusCode)
-
-            expectation.fulfill()
-        }) .resume()
+        ).resume()
 
         waitForExpectations(timeout: 4, handler: nil)
     }
@@ -56,7 +62,8 @@ class SessionUploadTests: XCTestCase {
 
         session.uploadTask(with: request, from: data) { data, response, error in
             do {
-                let JSON = try JSONSerialization.jsonObject(with: data!, options: []) as? [String: Any]
+                let JSON =
+                    try JSONSerialization.jsonObject(with: data!, options: []) as? [String: Any]
                 XCTAssertEqual("test file\n", (JSON?["form"] as? [String: Any])?["file"] as? String)
             } catch {
                 XCTFail("Failed to read JSON.")
@@ -70,7 +77,6 @@ class SessionUploadTests: XCTestCase {
 
         waitForExpectations(timeout: 4, handler: nil)
     }
-
 
     // MARK: Helpers
 
@@ -92,7 +98,8 @@ class SessionUploadTests: XCTestCase {
     }
 
     private func writeDataToFile(_ data: Data, fileName: String) -> URL {
-        let documentsURL = try! FileManager.default.url(for: .documentDirectory, in: .userDomainMask, appropriateFor: nil, create: true)
+        let documentsURL = try! FileManager.default.url(
+            for: .documentDirectory, in: .userDomainMask, appropriateFor: nil, create: true)
         let url = documentsURL.appendingPathComponent(fileName + ".tmp")
 
         try? data.write(to: url, options: [.atomic])
@@ -100,7 +107,6 @@ class SessionUploadTests: XCTestCase {
     }
 
 }
-
 
 // MARK: - Helpers
 
@@ -110,7 +116,6 @@ extension String {
     }
 }
 
-
-public func +=(lhs: NSMutableData, rhs: Data) {
+public func += (lhs: NSMutableData, rhs: Data) {
     lhs.append(rhs)
 }
