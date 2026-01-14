@@ -1,7 +1,8 @@
 import Foundation
+import os
 
 final class SessionDataTask: URLSessionDataTask {
-    
+
     enum TaskError: Error {
         case requestNotFound
         case cannotRecordNoResponse
@@ -12,6 +13,7 @@ final class SessionDataTask: URLSessionDataTask {
 
     typealias Completion = (Data?, Foundation.URLResponse?, NSError?) -> Void
 
+    private static let logger = Logger(subsystem: "DVR", category: "playback")
 
     // MARK: - Properties
 
@@ -31,21 +33,21 @@ final class SessionDataTask: URLSessionDataTask {
         return request
     }
 
-
     // MARK: - Initializers
 
-    init(session: Session, 
-         request: URLRequest,
-         headersToCheck: [String] = [],
-         parametersToIgnore: [String] = [],
-         completion: (Completion)? = nil) {
+    init(
+        session: Session,
+        request: URLRequest,
+        headersToCheck: [String] = [],
+        parametersToIgnore: [String] = [],
+        completion: (Completion)? = nil
+    ) {
         self.session = session
         self.request = request
         self.headersToCheck = headersToCheck
         self.parametersToIgnore = parametersToIgnore
         self.completion = completion
     }
-
 
     // MARK: - URLSessionTask
 
@@ -57,9 +59,11 @@ final class SessionDataTask: URLSessionDataTask {
         let cassette = session.cassette
 
         // Find interaction
-        if let interaction = session.cassette?.interactionForRequest(request, 
-                                                                     headersToCheck: headersToCheck,
-                                                                     parametersToIgnore: parametersToIgnore) {
+        if let interaction = session.cassette?.interactionForRequest(
+            request,
+            headersToCheck: headersToCheck,
+            parametersToIgnore: parametersToIgnore)
+        {
             self.interaction = interaction
             // Forward completion
             if let completion = completion {
@@ -72,38 +76,44 @@ final class SessionDataTask: URLSessionDataTask {
         }
 
         if cassette != nil {
+            Self.logger.error("Request not found in cassette '\(cassette!.name)'")
             completion?(nil, nil, TaskError.requestNotFound as NSError)
             return
         }
 
         // Cassette is missing. Record.
         if session.recordingEnabled == false {
+            Self.logger.error("Cassette is missing and recording is disabled")
             completion?(nil, nil, TaskError.cannotRecordSettingIsDisabled as NSError)
             return
         }
-        
+
         let request = session.requestSavedForBackingSession ?? request
 
-        let task = session.backingSession.dataTask(with: request, completionHandler: { [weak self] data, response, error in
+        let task = session.backingSession.dataTask(
+            with: request,
+            completionHandler: { [weak self] data, response, error in
 
-            guard let response else {
-                self?.completion?(nil, nil, TaskError.cannotRecordNoResponse as NSError)
-                return
-            }
+                guard let response else {
+                    Self.logger.error("No response received from backing session")
+                    self?.completion?(nil, nil, TaskError.cannotRecordNoResponse as NSError)
+                    return
+                }
 
-            guard let this = self else {
-                fatalError("[DVR] Something has gone horribly wrong.")
-            }
+                guard let this = self else {
+                    fatalError("[DVR] Something has gone horribly wrong.")
+                }
 
-            // Still call the completion block so the user can chain requests while recording.
-            this.queue.async {
-                this.completion?(data, response, nil)
-            }
+                // Still call the completion block so the user can chain requests while recording.
+                this.queue.async {
+                    this.completion?(data, response, nil)
+                }
 
-            // Create interaction
-            this.interaction = Interaction(request: this.request, response: response, responseData: data)
-            this.session.finishTask(this, interaction: this.interaction!, playback: false)
-        })
+                // Create interaction
+                this.interaction = Interaction(
+                    request: this.request, response: response, responseData: data)
+                this.session.finishTask(this, interaction: this.interaction!, playback: false)
+            })
         task.resume()
     }
 }
